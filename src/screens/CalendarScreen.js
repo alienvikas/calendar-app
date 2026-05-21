@@ -27,25 +27,40 @@ const CalendarScreen = () => {
   const role = ROLES[activeRole];
   const roleEvents = allEvents[activeRole] || {};
 
+  // All events for this role as a flat list
+  const allRoleEvents = useMemo(() => Object.values(roleEvents).flat(), [roleEvents]);
+
+  // Mark dots on every date within each event's start→end range
   const markedDates = useMemo(() => {
     const marks = {};
-    Object.keys(roleEvents).forEach((date) => {
-      const dayEvts = roleEvents[date];
-      if (!dayEvts || dayEvts.length === 0) return;
-      marks[date] = {
-        marked: true,
-        dots: dayEvts.slice(0, 3).map((e) => ({ color: e.color || role.color })),
-      };
-    });
-    marks[selectedDate] = {
-      ...(marks[selectedDate] || {}),
-      selected: true,
-      selectedColor: role.color,
+    const addDot = (dateStr, color) => {
+      if (!marks[dateStr]) marks[dateStr] = { dots: [] };
+      if (marks[dateStr].dots.length < 3) marks[dateStr].dots.push({ color });
     };
+    allRoleEvents.forEach((evt) => {
+      const start = evt.startDate || evt.date;
+      const end = evt.endDate || start;
+      let cur = start;
+      while (cur <= end) {
+        addDot(cur, evt.color || role.color);
+        const d = new Date(cur + 'T00:00:00');
+        d.setDate(d.getDate() + 1);
+        cur = d.toISOString().split('T')[0];
+      }
+    });
+    marks[selectedDate] = { ...(marks[selectedDate] || {}), selected: true, selectedColor: role.color };
     return marks;
-  }, [roleEvents, selectedDate, role.color]);
+  }, [allRoleEvents, selectedDate, role.color]);
 
-  const dayEvents = useMemo(() => roleEvents[selectedDate] || [], [roleEvents, selectedDate]);
+  // Events that overlap with selectedDate (start <= selected <= end)
+  const dayEvents = useMemo(
+    () => allRoleEvents.filter((evt) => {
+      const start = evt.startDate || evt.date;
+      const end = evt.endDate || start;
+      return start <= selectedDate && selectedDate <= end;
+    }),
+    [allRoleEvents, selectedDate]
+  );
 
   const openAddModal = useCallback(() => {
     setEditingEvent(null);
@@ -59,10 +74,12 @@ const CalendarScreen = () => {
 
   const handleSave = useCallback(
     async (formData) => {
+      const storageDate = formData.startDate || selectedDate;
       if (editingEvent) {
-        await updateEvent(activeRole, selectedDate, { ...editingEvent, ...formData });
+        const oldDate = editingEvent.startDate || selectedDate;
+        await updateEvent(activeRole, oldDate, { ...editingEvent, ...formData });
       } else {
-        await addEvent(activeRole, selectedDate, {
+        await addEvent(activeRole, storageDate, {
           id: Date.now().toString(),
           color: role.color,
           ...formData,
@@ -75,7 +92,10 @@ const CalendarScreen = () => {
   );
 
   const handleDelete = useCallback(async () => {
-    if (editingEvent) await deleteEvent(activeRole, selectedDate, editingEvent.id);
+    if (editingEvent) {
+      const storageDate = editingEvent.startDate || selectedDate;
+      await deleteEvent(activeRole, storageDate, editingEvent.id);
+    }
     setModalVisible(false);
     setEditingEvent(null);
   }, [editingEvent, activeRole, selectedDate, deleteEvent]);
