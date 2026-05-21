@@ -8,6 +8,8 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 
@@ -109,13 +111,10 @@ const EventFormModal = ({
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      {/*
-        Standard bottom-sheet layout:
-        - Outer View fills screen with semi-transparent background
-        - justifyContent:'flex-end' pushes the sheet to the bottom
-        - No absolute-positioned backdrop on top of sheet (no touch conflicts)
-      */}
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.overlay}
+      >
         <View style={styles.sheet}>
 
           {/* ── Header ── */}
@@ -134,6 +133,7 @@ const EventFormModal = ({
 
           {/* ── Scrollable form fields ── */}
           <ScrollView
+            style={styles.scrollView}
             contentContainerStyle={styles.body}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
@@ -322,7 +322,7 @@ const EventFormModal = ({
           )}
 
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
@@ -354,6 +354,10 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     maxHeight: '92%',
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
