@@ -36,7 +36,10 @@ const CalendarScreen = () => {
     const merged = {};
     ['manager', 'retailer'].forEach((r) => {
       Object.entries(allEvents[r] || {}).forEach(([date, shifts]) => {
-        merged[date] = [...(merged[date] || []), ...shifts];
+        const activeShifts = shifts.filter((s) => getShiftStatus(s) === 'active');
+        if (activeShifts.length > 0) {
+          merged[date] = [...(merged[date] || []), ...activeShifts];
+        }
       });
     });
     return merged;
