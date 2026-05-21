@@ -6,8 +6,9 @@ import {
   StyleSheet,
   FlatList,
   StatusBar,
-  SafeAreaView,
+  Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Calendar } from 'react-native-calendars';
 import { useEvents } from '../context/EventContext';
 import EventCard from '../components/EventCard';
@@ -28,17 +29,14 @@ const CalendarScreen = () => {
       if (!dayEvents || dayEvents.length === 0) return;
       marks[date] = {
         marked: true,
-        dotColor: dayEvents[0].color,
         dots: dayEvents.slice(0, 3).map((e) => ({ color: e.color })),
       };
     });
-    if (selectedDate) {
-      marks[selectedDate] = {
-        ...(marks[selectedDate] || {}),
-        selected: true,
-        selectedColor: '#4A90D9',
-      };
-    }
+    marks[selectedDate] = {
+      ...(marks[selectedDate] || {}),
+      selected: true,
+      selectedColor: '#4A90D9',
+    };
     return marks;
   }, [events, selectedDate]);
 
@@ -59,11 +57,7 @@ const CalendarScreen = () => {
       if (editingEvent) {
         await updateEvent(selectedDate, { ...editingEvent, ...formData });
       } else {
-        const newEvent = {
-          id: Date.now().toString(),
-          ...formData,
-        };
-        await addEvent(selectedDate, newEvent);
+        await addEvent(selectedDate, { id: Date.now().toString(), ...formData });
       }
       setModalVisible(false);
       setEditingEvent(null);
@@ -72,29 +66,31 @@ const CalendarScreen = () => {
   );
 
   const handleDelete = useCallback(async () => {
-    if (editingEvent) {
-      await deleteEvent(selectedDate, editingEvent.id);
-    }
+    if (editingEvent) await deleteEvent(selectedDate, editingEvent.id);
     setModalVisible(false);
     setEditingEvent(null);
   }, [editingEvent, selectedDate, deleteEvent]);
 
   const formatDisplayDate = (dateStr) => {
     const d = new Date(dateStr + 'T00:00:00');
-    return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    return d.toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    });
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor="#12121E" />
 
-      <View style={styles.topBar}>
+      {/* Header */}
+      <View style={styles.header}>
         <Text style={styles.appTitle}>My Calendar</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={openAddModal}>
-          <Text style={styles.addBtnText}>+ Add</Text>
-        </TouchableOpacity>
+        <Text style={styles.todayBadge}>{today}</Text>
       </View>
 
+      {/* Calendar */}
       <Calendar
         style={styles.calendar}
         theme={{
@@ -105,7 +101,7 @@ const CalendarScreen = () => {
           selectedDayTextColor: '#fff',
           todayTextColor: '#4A90D9',
           dayTextColor: '#E0E0E0',
-          textDisabledColor: '#444',
+          textDisabledColor: '#3a3a4a',
           dotColor: '#4A90D9',
           selectedDotColor: '#fff',
           arrowColor: '#4A90D9',
@@ -113,9 +109,10 @@ const CalendarScreen = () => {
           indicatorColor: '#4A90D9',
           textDayFontWeight: '400',
           textMonthFontWeight: '700',
-          textDayHeaderFontWeight: '500',
+          textDayHeaderFontWeight: '600',
           textDayFontSize: 14,
-          textMonthFontSize: 17,
+          textMonthFontSize: 16,
+          textDayHeaderFontSize: 12,
         }}
         current={selectedDate}
         onDayPress={(day) => setSelectedDate(day.dateString)}
@@ -124,12 +121,13 @@ const CalendarScreen = () => {
         enableSwipeMonths
       />
 
+      {/* Events section */}
       <View style={styles.eventsSection}>
         <View style={styles.dateLine}>
           <Text style={styles.dateLabel}>{formatDisplayDate(selectedDate)}</Text>
-          <Text style={styles.eventCount}>
-            {dayEvents.length} {dayEvents.length === 1 ? 'event' : 'events'}
-          </Text>
+          <View style={styles.countBadge}>
+            <Text style={styles.countText}>{dayEvents.length}</Text>
+          </View>
         </View>
 
         <FlatList
@@ -142,15 +140,21 @@ const CalendarScreen = () => {
             <View style={styles.empty}>
               <Text style={styles.emptyIcon}>📅</Text>
               <Text style={styles.emptyText}>No events for this day</Text>
-              <TouchableOpacity onPress={openAddModal}>
-                <Text style={styles.emptyAction}>Tap "+ Add" to create one</Text>
-              </TouchableOpacity>
+              <Text style={styles.emptyHint}>Tap + to add one</Text>
             </View>
           }
-          contentContainerStyle={dayEvents.length === 0 ? styles.emptyList : styles.list}
+          contentContainerStyle={[
+            styles.list,
+            dayEvents.length === 0 && styles.emptyList,
+          ]}
           showsVerticalScrollIndicator={false}
         />
       </View>
+
+      {/* Floating Action Button */}
+      <TouchableOpacity style={styles.fab} onPress={openAddModal} activeOpacity={0.85}>
+        <Text style={styles.fabIcon}>+</Text>
+      </TouchableOpacity>
 
       <EventFormModal
         visible={modalVisible}
@@ -165,46 +169,110 @@ const CalendarScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#12121E' },
-  topBar: {
+  container: {
+    flex: 1,
+    backgroundColor: '#12121E',
+  },
+  header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingTop: 10,
+    paddingBottom: 8,
   },
-  appTitle: { color: '#FFF', fontSize: 22, fontWeight: '700' },
-  addBtn: {
-    backgroundColor: '#4A90D9',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+  appTitle: {
+    color: '#FFF',
+    fontSize: 24,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
-  addBtnText: { color: '#FFF', fontWeight: '600', fontSize: 14 },
+  todayBadge: {
+    color: '#4A90D9',
+    fontSize: 12,
+    fontWeight: '500',
+  },
   calendar: {
+    marginHorizontal: 10,
     borderRadius: 16,
-    marginHorizontal: 12,
     overflow: 'hidden',
+    elevation: 4,
   },
   eventsSection: {
     flex: 1,
-    marginTop: 16,
+    marginTop: 14,
     paddingHorizontal: 16,
   },
   dateLine: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 14,
+    justifyContent: 'space-between',
+    marginBottom: 12,
   },
-  dateLabel: { color: '#FFF', fontSize: 15, fontWeight: '600', flex: 1 },
-  eventCount: { color: '#888', fontSize: 13 },
-  list: { paddingBottom: 20 },
-  emptyList: { flex: 1 },
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 40 },
-  emptyIcon: { fontSize: 48, marginBottom: 12 },
-  emptyText: { color: '#666', fontSize: 15, marginBottom: 8 },
-  emptyAction: { color: '#4A90D9', fontSize: 14 },
+  dateLabel: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '600',
+    flex: 1,
+  },
+  countBadge: {
+    backgroundColor: '#2A2A3E',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  countText: {
+    color: '#4A90D9',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  list: {
+    paddingBottom: 100,
+  },
+  emptyList: {
+    flexGrow: 1,
+  },
+  empty: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 40,
+  },
+  emptyIcon: {
+    fontSize: 44,
+    marginBottom: 10,
+  },
+  emptyText: {
+    color: '#555',
+    fontSize: 15,
+    marginBottom: 4,
+  },
+  emptyHint: {
+    color: '#4A90D9',
+    fontSize: 13,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 30,
+    right: 24,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: '#4A90D9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 8,
+    shadowColor: '#4A90D9',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+  },
+  fabIcon: {
+    color: '#FFF',
+    fontSize: 32,
+    fontWeight: '300',
+    lineHeight: 36,
+  },
 });
 
 export default CalendarScreen;
