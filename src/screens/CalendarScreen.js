@@ -30,25 +30,41 @@ const CalendarScreen = () => {
   // All events for this role as a flat list
   const allRoleEvents = useMemo(() => Object.values(roleEvents).flat(), [roleEvents]);
 
-  // Mark dots on every date within each event's start→end range
+  // Build multi-period marks — one colored band per event spanning its full date range
   const markedDates = useMemo(() => {
     const marks = {};
-    const addDot = (dateStr, color) => {
-      if (!marks[dateStr]) marks[dateStr] = { dots: [] };
-      if (marks[dateStr].dots.length < 3) marks[dateStr].dots.push({ color });
+
+    const addPeriod = (dateStr, period) => {
+      if (!marks[dateStr]) marks[dateStr] = { periods: [] };
+      if (!marks[dateStr].periods) marks[dateStr].periods = [];
+      marks[dateStr].periods.push(period);
     };
+
     allRoleEvents.forEach((evt) => {
       const start = evt.startDate || evt.date;
       const end = evt.endDate || start;
+      const evtColor = evt.color || role.color;
+
       let cur = start;
       while (cur <= end) {
-        addDot(cur, evt.color || role.color);
+        addPeriod(cur, {
+          startingDay: cur === start,
+          endingDay: cur === end,
+          color: evtColor,
+        });
         const d = new Date(cur + 'T00:00:00');
         d.setDate(d.getDate() + 1);
         cur = d.toISOString().split('T')[0];
       }
     });
-    marks[selectedDate] = { ...(marks[selectedDate] || {}), selected: true, selectedColor: role.color };
+
+    // Selected date: keep periods but add selection highlight
+    marks[selectedDate] = {
+      ...(marks[selectedDate] || {}),
+      selected: true,
+      selectedColor: role.color,
+    };
+
     return marks;
   }, [allRoleEvents, selectedDate, role.color]);
 
@@ -170,7 +186,7 @@ const CalendarScreen = () => {
         current={selectedDate}
         onDayPress={(day) => setSelectedDate(day.dateString)}
         markedDates={markedDates}
-        markingType="multi-dot"
+        markingType="multi-period"
         enableSwipeMonths
       />
 
