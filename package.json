@@ -18,5 +18,8 @@
     "react-native-gesture-handler": "^2.31.2",
     "react-native-safe-area-context": "^5.8.0"
   },
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "sharp": "^0.34.5"
+  }
 }
