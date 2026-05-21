@@ -6,41 +6,46 @@ import {
   StyleSheet,
   FlatList,
   StatusBar,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Calendar } from 'react-native-calendars';
 import { useEvents } from '../context/EventContext';
+import { ROLES, ROLE_LIST } from '../config/roles';
+import RoleTabBar from '../components/RoleTabBar';
 import EventCard from '../components/EventCard';
 import EventFormModal from '../components/EventFormModal';
 
 const today = new Date().toISOString().split('T')[0];
 
 const CalendarScreen = () => {
-  const { events, addEvent, updateEvent, deleteEvent } = useEvents();
+  const { allEvents, addEvent, updateEvent, deleteEvent } = useEvents();
+  const [activeRole, setActiveRole] = useState('manager');
   const [selectedDate, setSelectedDate] = useState(today);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
 
+  const role = ROLES[activeRole];
+  const roleEvents = allEvents[activeRole] || {};
+
   const markedDates = useMemo(() => {
     const marks = {};
-    Object.keys(events).forEach((date) => {
-      const dayEvents = events[date];
-      if (!dayEvents || dayEvents.length === 0) return;
+    Object.keys(roleEvents).forEach((date) => {
+      const dayEvts = roleEvents[date];
+      if (!dayEvts || dayEvts.length === 0) return;
       marks[date] = {
         marked: true,
-        dots: dayEvents.slice(0, 3).map((e) => ({ color: e.color })),
+        dots: dayEvts.slice(0, 3).map((e) => ({ color: e.color || role.color })),
       };
     });
     marks[selectedDate] = {
       ...(marks[selectedDate] || {}),
       selected: true,
-      selectedColor: '#4A90D9',
+      selectedColor: role.color,
     };
     return marks;
-  }, [events, selectedDate]);
+  }, [roleEvents, selectedDate, role.color]);
 
-  const dayEvents = useMemo(() => events[selectedDate] || [], [events, selectedDate]);
+  const dayEvents = useMemo(() => roleEvents[selectedDate] || [], [roleEvents, selectedDate]);
 
   const openAddModal = useCallback(() => {
     setEditingEvent(null);
@@ -55,64 +60,92 @@ const CalendarScreen = () => {
   const handleSave = useCallback(
     async (formData) => {
       if (editingEvent) {
-        await updateEvent(selectedDate, { ...editingEvent, ...formData });
+        await updateEvent(activeRole, selectedDate, { ...editingEvent, ...formData });
       } else {
-        await addEvent(selectedDate, { id: Date.now().toString(), ...formData });
+        await addEvent(activeRole, selectedDate, {
+          id: Date.now().toString(),
+          color: role.color,
+          ...formData,
+        });
       }
       setModalVisible(false);
       setEditingEvent(null);
     },
-    [editingEvent, selectedDate, addEvent, updateEvent]
+    [editingEvent, activeRole, selectedDate, addEvent, updateEvent, role.color]
   );
 
   const handleDelete = useCallback(async () => {
-    if (editingEvent) await deleteEvent(selectedDate, editingEvent.id);
+    if (editingEvent) await deleteEvent(activeRole, selectedDate, editingEvent.id);
     setModalVisible(false);
     setEditingEvent(null);
-  }, [editingEvent, selectedDate, deleteEvent]);
+  }, [editingEvent, activeRole, selectedDate, deleteEvent]);
 
-  const formatDisplayDate = (dateStr) => {
+  const handleRoleChange = useCallback((newRole) => {
+    setActiveRole(newRole);
+    setSelectedDate(today);
+    setModalVisible(false);
+    setEditingEvent(null);
+  }, []);
+
+  const formatDate = (dateStr) => {
     const d = new Date(dateStr + 'T00:00:00');
-    return d.toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-    });
+    return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   };
 
+  const totalEvents = ROLE_LIST.reduce((sum, r) => {
+    const ev = allEvents[r.key] || {};
+    return sum + Object.values(ev).reduce((s, arr) => s + arr.length, 0);
+  }, 0);
+
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: '#12121E' }]} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor="#12121E" />
 
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.appTitle}>My Calendar</Text>
-        <Text style={styles.todayBadge}>{today}</Text>
+        <View>
+          <Text style={styles.appTitle}>Calendar</Text>
+          <Text style={styles.subtitle}>{totalEvents} total events across all roles</Text>
+        </View>
+        <View style={[styles.roleIndicator, { backgroundColor: role.color + '22', borderColor: role.color }]}>
+          <Text style={styles.roleEmoji}>{role.emoji}</Text>
+          <Text style={[styles.roleLabel, { color: role.color }]}>{role.label}</Text>
+        </View>
+      </View>
+
+      {/* Role Tab Bar */}
+      <RoleTabBar activeRole={activeRole} onSelect={handleRoleChange} />
+
+      {/* Role banner */}
+      <View style={[styles.roleBanner, { backgroundColor: role.color + '18', borderLeftColor: role.color }]}>
+        <Text style={[styles.roleBannerText, { color: role.color }]}>
+          {role.emoji}  {role.label} Calendar — managed by {role.label}
+        </Text>
       </View>
 
       {/* Calendar */}
       <Calendar
         style={styles.calendar}
         theme={{
-          backgroundColor: '#12121E',
+          backgroundColor: 'transparent',
           calendarBackground: '#1E1E2E',
-          textSectionTitleColor: '#888',
-          selectedDayBackgroundColor: '#4A90D9',
+          textSectionTitleColor: '#666',
+          selectedDayBackgroundColor: role.color,
           selectedDayTextColor: '#fff',
-          todayTextColor: '#4A90D9',
-          dayTextColor: '#E0E0E0',
+          todayTextColor: role.color,
+          dayTextColor: '#DDD',
           textDisabledColor: '#3a3a4a',
-          dotColor: '#4A90D9',
+          dotColor: role.color,
           selectedDotColor: '#fff',
-          arrowColor: '#4A90D9',
+          arrowColor: role.color,
           monthTextColor: '#FFF',
-          indicatorColor: '#4A90D9',
+          indicatorColor: role.color,
           textDayFontWeight: '400',
           textMonthFontWeight: '700',
           textDayHeaderFontWeight: '600',
           textDayFontSize: 14,
           textMonthFontSize: 16,
-          textDayHeaderFontSize: 12,
+          textDayHeaderFontSize: 11,
         }}
         current={selectedDate}
         onDayPress={(day) => setSelectedDate(day.dateString)}
@@ -121,12 +154,14 @@ const CalendarScreen = () => {
         enableSwipeMonths
       />
 
-      {/* Events section */}
+      {/* Events for selected day */}
       <View style={styles.eventsSection}>
         <View style={styles.dateLine}>
-          <Text style={styles.dateLabel}>{formatDisplayDate(selectedDate)}</Text>
-          <View style={styles.countBadge}>
-            <Text style={styles.countText}>{dayEvents.length}</Text>
+          <Text style={styles.dateLabel}>{formatDate(selectedDate)}</Text>
+          <View style={[styles.countBadge, { backgroundColor: role.color + '22' }]}>
+            <Text style={[styles.countText, { color: role.color }]}>
+              {dayEvents.length} {dayEvents.length === 1 ? 'event' : 'events'}
+            </Text>
           </View>
         </View>
 
@@ -138,21 +173,22 @@ const CalendarScreen = () => {
           )}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyIcon}>📅</Text>
-              <Text style={styles.emptyText}>No events for this day</Text>
-              <Text style={styles.emptyHint}>Tap + to add one</Text>
+              <Text style={styles.emptyEmoji}>{role.emoji}</Text>
+              <Text style={styles.emptyText}>No {role.label} events today</Text>
+              <Text style={styles.emptyHint}>Tap + to add an event</Text>
             </View>
           }
-          contentContainerStyle={[
-            styles.list,
-            dayEvents.length === 0 && styles.emptyList,
-          ]}
+          contentContainerStyle={[styles.list, dayEvents.length === 0 && styles.emptyList]}
           showsVerticalScrollIndicator={false}
         />
       </View>
 
       {/* Floating Action Button */}
-      <TouchableOpacity style={styles.fab} onPress={openAddModal} activeOpacity={0.85}>
+      <TouchableOpacity
+        style={[styles.fab, { backgroundColor: role.color, shadowColor: role.color }]}
+        onPress={openAddModal}
+        activeOpacity={0.85}
+      >
         <Text style={styles.fabIcon}>+</Text>
       </TouchableOpacity>
 
@@ -163,116 +199,89 @@ const CalendarScreen = () => {
         onDelete={handleDelete}
         initialEvent={editingEvent}
         date={selectedDate}
+        roleColor={role.color}
+        roleLabel={role.label}
       />
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#12121E',
-  },
+  container: { flex: 1 },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 8,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 10,
   },
-  appTitle: {
-    color: '#FFF',
-    fontSize: 24,
-    fontWeight: '700',
-    letterSpacing: 0.3,
+  appTitle: { color: '#FFF', fontSize: 22, fontWeight: '700' },
+  subtitle: { color: '#555', fontSize: 11, marginTop: 2 },
+  roleIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: 6,
   },
-  todayBadge: {
-    color: '#4A90D9',
-    fontSize: 12,
-    fontWeight: '500',
+  roleEmoji: { fontSize: 14 },
+  roleLabel: { fontSize: 12, fontWeight: '700' },
+  roleBanner: {
+    marginHorizontal: 12,
+    marginBottom: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderLeftWidth: 3,
   },
+  roleBannerText: { fontSize: 12, fontWeight: '600' },
   calendar: {
     marginHorizontal: 10,
     borderRadius: 16,
     overflow: 'hidden',
-    elevation: 4,
   },
   eventsSection: {
     flex: 1,
-    marginTop: 14,
-    paddingHorizontal: 16,
+    marginTop: 12,
+    paddingHorizontal: 14,
   },
   dateLine: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 10,
   },
-  dateLabel: {
-    color: '#FFF',
-    fontSize: 15,
-    fontWeight: '600',
-    flex: 1,
-  },
+  dateLabel: { color: '#FFF', fontSize: 14, fontWeight: '600', flex: 1 },
   countBadge: {
-    backgroundColor: '#2A2A3E',
     borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 3,
   },
-  countText: {
-    color: '#4A90D9',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  list: {
-    paddingBottom: 100,
-  },
-  emptyList: {
-    flexGrow: 1,
-  },
-  empty: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 40,
-  },
-  emptyIcon: {
-    fontSize: 44,
-    marginBottom: 10,
-  },
-  emptyText: {
-    color: '#555',
-    fontSize: 15,
-    marginBottom: 4,
-  },
-  emptyHint: {
-    color: '#4A90D9',
-    fontSize: 13,
-  },
+  countText: { fontSize: 12, fontWeight: '600' },
+  list: { paddingBottom: 100 },
+  emptyList: { flexGrow: 1 },
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 30 },
+  emptyEmoji: { fontSize: 40, marginBottom: 10 },
+  emptyText: { color: '#555', fontSize: 14, marginBottom: 4 },
+  emptyHint: { color: '#444', fontSize: 12 },
   fab: {
     position: 'absolute',
-    bottom: 30,
-    right: 24,
+    bottom: 28,
+    right: 22,
     width: 58,
     height: 58,
     borderRadius: 29,
-    backgroundColor: '#4A90D9',
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 8,
-    shadowColor: '#4A90D9',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 8,
   },
-  fabIcon: {
-    color: '#FFF',
-    fontSize: 32,
-    fontWeight: '300',
-    lineHeight: 36,
-  },
+  fabIcon: { color: '#FFF', fontSize: 32, fontWeight: '300', lineHeight: 36 },
 });
 
 export default CalendarScreen;

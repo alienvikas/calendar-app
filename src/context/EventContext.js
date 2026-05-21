@@ -1,62 +1,62 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { loadEvents, saveEvents } from '../utils/storage';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { loadRoleEvents, saveRoleEvents } from '../utils/storage';
 
 const EventContext = createContext(null);
 
+const ROLES = ['manager', 'driver', 'retailer'];
+
 export const EventProvider = ({ children }) => {
-  const [events, setEvents] = useState({});
+  const [allEvents, setAllEvents] = useState({ manager: {}, driver: {}, retailer: {} });
   const [loading, setLoading] = useState(true);
+  const loadedRef = useRef(false);
 
   useEffect(() => {
-    loadEvents().then((stored) => {
-      setEvents(stored);
+    if (loadedRef.current) return;
+    loadedRef.current = true;
+    Promise.all(ROLES.map((r) => loadRoleEvents(r).then((e) => [r, e]))).then((results) => {
+      const combined = {};
+      results.forEach(([role, events]) => { combined[role] = events; });
+      setAllEvents(combined);
       setLoading(false);
     });
   }, []);
 
-  const addEvent = useCallback(async (dateString, event) => {
-    setEvents((prev) => {
-      const dayEvents = prev[dateString] ? [...prev[dateString], event] : [event];
-      const updated = { ...prev, [dateString]: dayEvents };
-      saveEvents(updated);
+  const addEvent = useCallback(async (role, date, event) => {
+    setAllEvents((prev) => {
+      const roleEvents = prev[role] || {};
+      const dayEvents = roleEvents[date] ? [...roleEvents[date], event] : [event];
+      const updated = { ...prev, [role]: { ...roleEvents, [date]: dayEvents } };
+      saveRoleEvents(role, updated[role]);
       return updated;
     });
   }, []);
 
-  const updateEvent = useCallback(async (dateString, updatedEvent) => {
-    setEvents((prev) => {
-      const dayEvents = (prev[dateString] || []).map((e) =>
+  const updateEvent = useCallback(async (role, date, updatedEvent) => {
+    setAllEvents((prev) => {
+      const roleEvents = prev[role] || {};
+      const dayEvents = (roleEvents[date] || []).map((e) =>
         e.id === updatedEvent.id ? updatedEvent : e
       );
-      const updated = { ...prev, [dateString]: dayEvents };
-      saveEvents(updated);
+      const updated = { ...prev, [role]: { ...roleEvents, [date]: dayEvents } };
+      saveRoleEvents(role, updated[role]);
       return updated;
     });
   }, []);
 
-  const deleteEvent = useCallback(async (dateString, eventId) => {
-    setEvents((prev) => {
-      const dayEvents = (prev[dateString] || []).filter((e) => e.id !== eventId);
-      const updated = { ...prev, [dateString]: dayEvents };
-      if (dayEvents.length === 0) delete updated[dateString];
-      saveEvents(updated);
-      return updated;
-    });
-  }, []);
-
-  const moveEvent = useCallback(async (oldDate, newDate, event) => {
-    setEvents((prev) => {
-      const oldDay = (prev[oldDate] || []).filter((e) => e.id !== event.id);
-      const newDay = prev[newDate] ? [...prev[newDate], event] : [event];
-      const updated = { ...prev, [oldDate]: oldDay, [newDate]: newDay };
-      if (oldDay.length === 0) delete updated[oldDate];
-      saveEvents(updated);
+  const deleteEvent = useCallback(async (role, date, eventId) => {
+    setAllEvents((prev) => {
+      const roleEvents = { ...(prev[role] || {}) };
+      const dayEvents = (roleEvents[date] || []).filter((e) => e.id !== eventId);
+      if (dayEvents.length === 0) delete roleEvents[date];
+      else roleEvents[date] = dayEvents;
+      const updated = { ...prev, [role]: roleEvents };
+      saveRoleEvents(role, updated[role]);
       return updated;
     });
   }, []);
 
   return (
-    <EventContext.Provider value={{ events, loading, addEvent, updateEvent, deleteEvent, moveEvent }}>
+    <EventContext.Provider value={{ allEvents, loading, addEvent, updateEvent, deleteEvent }}>
       {children}
     </EventContext.Provider>
   );

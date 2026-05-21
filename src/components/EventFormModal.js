@@ -14,7 +14,7 @@ import {
 
 const COLORS = ['#4A90D9', '#E74C3C', '#2ECC71', '#F39C12', '#9B59B6', '#1ABC9C', '#E67E22', '#EC407A'];
 
-const EventFormModal = ({ visible, onClose, onSave, onDelete, initialEvent, date }) => {
+const EventFormModal = ({ visible, onClose, onSave, onDelete, initialEvent, date, roleColor = '#4A90D9', roleLabel = '' }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [startTime, setStartTime] = useState('09:00');
@@ -65,14 +65,14 @@ const EventFormModal = ({ visible, onClose, onSave, onDelete, initialEvent, date
             <TouchableOpacity onPress={onClose}>
               <Text style={styles.cancel}>Cancel</Text>
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>{isEditing ? 'Edit Event' : 'New Event'}</Text>
+            <Text style={styles.headerTitle}>{isEditing ? 'Edit Event' : `New ${roleLabel} Event`}</Text>
             <TouchableOpacity onPress={handleSave}>
-              <Text style={styles.save}>Save</Text>
+              <Text style={[styles.save, { color: roleColor }]}>Save</Text>
             </TouchableOpacity>
           </View>
 
           <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-            <View style={[styles.colorBar, { backgroundColor: color }]} />
+            <View style={[styles.colorBar, { backgroundColor: roleColor }]} />
 
             <View style={styles.field}>
               <Text style={styles.label}>Title *</Text>
