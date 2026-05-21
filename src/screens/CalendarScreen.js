@@ -97,22 +97,25 @@ const CalendarScreen = () => {
   }, []);
 
   const handleSave = useCallback(async (formData) => {
-    const storageDate = formData.startDate || selectedDate;
-    if (editingShift) {
-      const oldDate = editingShift.startDate || selectedDate;
-      const targetRole = editingShift.createdBy || activeRole;
-      await updateEvent(targetRole, oldDate, { ...editingShift, ...formData });
-    } else {
-      await addEvent(activeRole, storageDate, {
-        id: Date.now().toString(),
-        createdAt: Date.now(),   // Rule 2: timestamp used to compute pending→active
-        createdBy: activeRole,
-        color: role.color,
-        ...formData,
-      });
+    try {
+      const storageDate = formData.startDate || selectedDate;
+      if (editingShift) {
+        const oldDate = editingShift.startDate || selectedDate;
+        const targetRole = editingShift.createdBy || activeRole;
+        await updateEvent(targetRole, oldDate, { ...editingShift, ...formData });
+      } else {
+        await addEvent(activeRole, storageDate, {
+          id: Date.now().toString(),
+          createdAt: Date.now(),
+          createdBy: activeRole,
+          color: role.color,
+          ...formData,
+        });
+      }
+    } finally {
+      setModalVisible(false);
+      setEditingShift(null);
     }
-    setModalVisible(false);
-    setEditingShift(null);
   }, [editingShift, activeRole, selectedDate, addEvent, updateEvent, role.color]);
 
   const handleDelete = useCallback(async () => {

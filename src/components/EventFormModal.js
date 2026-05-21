@@ -109,11 +109,13 @@ const EventFormModal = ({
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      {/* Backdrop — tapping outside closes the sheet */}
-      <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
+      {/* Outer container — flex column, sheet sits at the bottom */}
+      <View style={styles.modalContainer}>
+        {/* Backdrop fills the space ABOVE the sheet — no overlap, no touch conflict */}
+        <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
 
-      {/* Sheet — fixed at bottom, no KeyboardAvoidingView to avoid flicker */}
-      <View style={styles.sheet}>
+        {/* Sheet at the bottom */}
+        <View style={styles.sheet}>
 
         {/* Header */}
         <View style={styles.header}>
@@ -310,6 +312,7 @@ const EventFormModal = ({
           )}
         </ScrollView>
       </View>
+      </View>
     </Modal>
   );
 };
@@ -331,12 +334,14 @@ const calTheme = (roleColor) => ({
 });
 
 const styles = StyleSheet.create({
+  modalContainer: {
+    flex: 1,
+  },
   backdrop: {
-    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    flex: 1,
     backgroundColor: 'rgba(0,0,0,0.55)',
   },
   sheet: {
-    position: 'absolute', left: 0, right: 0, bottom: 0,
     backgroundColor: '#1E1E2E',
     borderTopLeftRadius: 22, borderTopRightRadius: 22,
     maxHeight: '92%',
