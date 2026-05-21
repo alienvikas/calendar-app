@@ -29,7 +29,7 @@ const nextDay = (dateStr) => {
 
 const EventFormModal = ({
   visible, onClose, onSave, onDelete, initialEvent, date,
-  roleColor = '#4A90D9', roleLabel = '',
+  roleColor = '#4A90D9', roleLabel = '', isDriverMode = false,
 }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -114,13 +114,25 @@ const EventFormModal = ({
             <Text style={styles.headerTitle}>
               {isEditing ? 'Edit Shift' : `New ${roleLabel} Shift`}
             </Text>
-            <TouchableOpacity onPress={handleSave}>
-              <Text style={[styles.save, { color: roleColor }]}>Save</Text>
-            </TouchableOpacity>
+            {!isDriverMode
+              ? <TouchableOpacity onPress={handleSave}>
+                  <Text style={[styles.save, { color: roleColor }]}>Save</Text>
+                </TouchableOpacity>
+              : <Text style={styles.viewOnly}>View Only</Text>
+            }
           </View>
 
           <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <View style={[styles.colorBar, { backgroundColor: roleColor }]} />
+
+            {/* Driver read-only banner */}
+            {isDriverMode && (
+              <View style={styles.driverBanner}>
+                <Text style={styles.driverBannerText}>
+                  🚚  Driver view — use the Accept button on the shift card to accept this shift.
+                </Text>
+              </View>
+            )}
 
             {/* Title */}
             <View style={styles.field}>
@@ -130,6 +142,7 @@ const EventFormModal = ({
                 value={title}
                 onChangeText={setTitle}
                 placeholder="Shift title"
+                editable={!isDriverMode}
                 placeholderTextColor="#555"
                 maxLength={80}
               />
@@ -227,6 +240,7 @@ const EventFormModal = ({
                 value={location}
                 onChangeText={setLocation}
                 placeholder="Add location (optional)"
+                editable={!isDriverMode}
                 placeholderTextColor="#555"
               />
             </View>
@@ -239,6 +253,7 @@ const EventFormModal = ({
                 value={description}
                 onChangeText={setDescription}
                 placeholder="Add notes (optional)"
+                editable={!isDriverMode}
                 placeholderTextColor="#555"
                 multiline
                 numberOfLines={3}
@@ -260,7 +275,8 @@ const EventFormModal = ({
               </View>
             </View>
 
-            {isEditing && (
+            {/* Rule 1 & 4: hide delete for driver or if shift is accepted */}
+            {isEditing && !isDriverMode && !initialEvent?.acceptedByDriver && (
               <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
                 <Text style={styles.deleteBtnText}>Delete Shift</Text>
               </TouchableOpacity>
@@ -338,6 +354,12 @@ const styles = StyleSheet.create({
 
   deleteBtn: { marginTop: 8, backgroundColor: '#3D1A1A', borderRadius: 10, padding: 14, alignItems: 'center' },
   deleteBtnText: { color: '#E74C3C', fontSize: 15, fontWeight: '600' },
+  viewOnly: { color: '#555', fontSize: 13, fontStyle: 'italic' },
+  driverBanner: {
+    backgroundColor: '#1A2A1A', borderRadius: 10, padding: 12,
+    borderLeftWidth: 3, borderLeftColor: '#2ECC71', marginBottom: 16,
+  },
+  driverBannerText: { color: '#2ECC71', fontSize: 12, lineHeight: 18 },
 
 });
 
