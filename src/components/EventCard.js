@@ -30,7 +30,7 @@ const EventCard = ({ event, onPress }) => {
         {!!event.description && <Text style={styles.desc} numberOfLines={1}>{event.description}</Text>}
         {isMultiDay && (
           <View style={[styles.multiDayBadge, { backgroundColor: event.color + '22' }]}>
-            <Text style={[styles.multiDayText, { color: event.color }]}>Multi-day event</Text>
+            <Text style={[styles.multiDayText, { color: event.color }]}>Multi-day shift</Text>
           </View>
         )}
       </View>

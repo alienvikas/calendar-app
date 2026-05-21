@@ -68,7 +68,7 @@ const EventFormModal = ({
   }, [initialEvent, visible, date, roleColor]);
 
   const handleSave = () => {
-    if (!title.trim()) { Alert.alert('Required', 'Please enter an event title.'); return; }
+    if (!title.trim()) { Alert.alert('Required', 'Please enter a shift title.'); return; }
     if (endDate < startDate) { Alert.alert('Invalid', 'End date cannot be before start date.'); return; }
     if (endDate === startDate && endTime <= startTime) {
       Alert.alert('Invalid', 'End time must be after start time on the same day.'); return;
@@ -77,7 +77,7 @@ const EventFormModal = ({
   };
 
   const handleDelete = () => {
-    Alert.alert('Delete Event', 'Are you sure you want to delete this event?', [
+    Alert.alert('Delete Shift', 'Are you sure you want to delete this shift?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: onDelete },
     ]);
@@ -112,7 +112,7 @@ const EventFormModal = ({
               <Text style={styles.cancel}>Cancel</Text>
             </TouchableOpacity>
             <Text style={styles.headerTitle}>
-              {isEditing ? 'Edit Event' : `New ${roleLabel} Event`}
+              {isEditing ? 'Edit Shift' : `New ${roleLabel} Shift`}
             </Text>
             <TouchableOpacity onPress={handleSave}>
               <Text style={[styles.save, { color: roleColor }]}>Save</Text>
@@ -129,7 +129,7 @@ const EventFormModal = ({
                 style={styles.input}
                 value={title}
                 onChangeText={setTitle}
-                placeholder="Event title"
+                placeholder="Shift title"
                 placeholderTextColor="#555"
                 maxLength={80}
               />
@@ -262,7 +262,7 @@ const EventFormModal = ({
 
             {isEditing && (
               <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
-                <Text style={styles.deleteBtnText}>Delete Event</Text>
+                <Text style={styles.deleteBtnText}>Delete Shift</Text>
               </TouchableOpacity>
             )}
           </ScrollView>
@@ -338,6 +338,7 @@ const styles = StyleSheet.create({
 
   deleteBtn: { marginTop: 8, backgroundColor: '#3D1A1A', borderRadius: 10, padding: 14, alignItems: 'center' },
   deleteBtnText: { color: '#E74C3C', fontSize: 15, fontWeight: '600' },
+
 });
 
 export default EventFormModal;

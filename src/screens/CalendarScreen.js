@@ -141,7 +141,7 @@ const CalendarScreen = () => {
       <View style={styles.header}>
         <View>
           <Text style={styles.appTitle}>Calendar</Text>
-          <Text style={styles.subtitle}>{totalEvents} total events across all roles</Text>
+          <Text style={styles.subtitle}>{totalEvents} total shifts across all roles</Text>
         </View>
         <View style={[styles.roleIndicator, { backgroundColor: role.color + '22', borderColor: role.color }]}>
           <Text style={styles.roleEmoji}>{role.emoji}</Text>
@@ -155,7 +155,7 @@ const CalendarScreen = () => {
       {/* Role banner */}
       <View style={[styles.roleBanner, { backgroundColor: role.color + '18', borderLeftColor: role.color }]}>
         <Text style={[styles.roleBannerText, { color: role.color }]}>
-          {role.emoji}  {role.label} Calendar — managed by {role.label}
+          {role.emoji}  {role.label} Shifts — managed by {role.label}
         </Text>
       </View>
 
@@ -190,13 +190,13 @@ const CalendarScreen = () => {
         enableSwipeMonths
       />
 
-      {/* Events for selected day */}
+      {/* Shifts for selected day */}
       <View style={styles.eventsSection}>
         <View style={styles.dateLine}>
           <Text style={styles.dateLabel}>{formatDate(selectedDate)}</Text>
           <View style={[styles.countBadge, { backgroundColor: role.color + '22' }]}>
             <Text style={[styles.countText, { color: role.color }]}>
-              {dayEvents.length} {dayEvents.length === 1 ? 'event' : 'events'}
+              {dayEvents.length} {dayEvents.length === 1 ? 'shift' : 'shifts'}
             </Text>
           </View>
         </View>
@@ -210,8 +210,8 @@ const CalendarScreen = () => {
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyEmoji}>{role.emoji}</Text>
-              <Text style={styles.emptyText}>No {role.label} events today</Text>
-              <Text style={styles.emptyHint}>Tap + to add an event</Text>
+              <Text style={styles.emptyText}>No {role.label} shifts today</Text>
+              <Text style={styles.emptyHint}>Tap + to add a shift</Text>
             </View>
           }
           contentContainerStyle={[styles.list, dayEvents.length === 0 && styles.emptyList]}
