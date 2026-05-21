@@ -112,9 +112,10 @@ const CalendarScreen = () => {
           ...formData,
         });
       }
-    } finally {
       setModalVisible(false);
       setEditingShift(null);
+    } catch (err) {
+      Alert.alert('Save Failed', err?.message || 'Something went wrong. Please try again.');
     }
   }, [editingShift, activeRole, selectedDate, addEvent, updateEvent, role.color]);
 

@@ -20,33 +20,28 @@ const formatDisplay = (dateStr) => {
 };
 
 const toMinutes = (t = '') => {
-  const parts = t.split(':');
-  const h = parseInt(parts[0], 10) || 0;
-  const m = parseInt(parts[1], 10) || 0;
-  return h * 60 + m;
+  const parts = (t || '').split(':');
+  return (parseInt(parts[0], 10) || 0) * 60 + (parseInt(parts[1], 10) || 0);
 };
 
 const EventFormModal = ({
   visible, onClose, onSave, onDelete, initialEvent, date,
   roleColor = '#4A90D9', roleLabel = '', isDriverMode = false,
 }) => {
-  const [title, setTitle] = useState('');
+  const [title, setTitle]           = useState('');
   const [description, setDescription] = useState('');
-  const [startDate, setStartDate] = useState(date || '');
-  const [startTime, setStartTime] = useState('09:00');
-  const [endDate, setEndDate] = useState(date || '');
-  const [endTime, setEndTime] = useState('10:00');
-  const [color, setColor] = useState(roleColor);
-  const [location, setLocation] = useState('');
+  const [startDate, setStartDate]   = useState(date || '');
+  const [startTime, setStartTime]   = useState('09:00');
+  const [endDate, setEndDate]       = useState(date || '');
+  const [endTime, setEndTime]       = useState('10:00');
+  const [color, setColor]           = useState(roleColor);
+  const [location, setLocation]     = useState('');
   const [activePicker, setActivePicker] = useState(null);
 
   const isEditing = !!initialEvent;
 
   useEffect(() => {
-    if (!visible) {
-      setActivePicker(null);
-      return;
-    }
+    if (!visible) { setActivePicker(null); return; }
     if (initialEvent) {
       setTitle(initialEvent.title || '');
       setDescription(initialEvent.description || '');
@@ -71,31 +66,20 @@ const EventFormModal = ({
 
   const handleSave = () => {
     if (!title.trim()) {
-      Alert.alert('Required', 'Please enter a shift title.');
+      Alert.alert('Required', 'Please enter a title for the shift.');
       return;
     }
-    if (startDate && endDate && endDate < startDate) {
+    const sd = startDate || date;
+    const ed = endDate || date;
+    if (sd && ed && ed < sd) {
       Alert.alert('Invalid Date', 'End date cannot be before start date.');
       return;
     }
-    if (startDate && endDate && startDate === endDate) {
-      const sm = toMinutes(startTime);
-      const em = toMinutes(endTime);
-      if (em <= sm) {
-        Alert.alert('Invalid Time', 'End time must be after start time.');
-        return;
-      }
+    if (sd && ed && sd === ed && toMinutes(endTime) <= toMinutes(startTime)) {
+      Alert.alert('Invalid Time', 'End time must be after start time.');
+      return;
     }
-    onSave({
-      title: title.trim(),
-      description,
-      startDate: startDate || date,
-      startTime,
-      endDate: endDate || date,
-      endTime,
-      color,
-      location,
-    });
+    onSave({ title: title.trim(), description, startDate: sd, startTime, endDate: ed, endTime, color, location });
   };
 
   const handleDelete = () => {
@@ -126,39 +110,36 @@ const EventFormModal = ({
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       {/*
-        Outer overlay: fills screen, dark background.
-        justifyContent="flex-end" pushes the sheet to the bottom.
-        No TouchableOpacity backdrop on top of the sheet — eliminates touch conflicts.
+        Standard bottom-sheet layout:
+        - Outer View fills screen with semi-transparent background
+        - justifyContent:'flex-end' pushes the sheet to the bottom
+        - No absolute-positioned backdrop on top of sheet (no touch conflicts)
       */}
       <View style={styles.overlay}>
         <View style={styles.sheet}>
 
-          {/* Header */}
+          {/* ── Header ── */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}>
               <Text style={styles.cancel}>Cancel</Text>
             </TouchableOpacity>
             <Text style={styles.headerTitle}>
               {isEditing ? 'Edit Shift' : `New ${roleLabel} Shift`}
             </Text>
-            {!isDriverMode
-              ? <TouchableOpacity onPress={handleSave} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-                  <Text style={[styles.headerSave, { color: roleColor }]}>Save</Text>
-                </TouchableOpacity>
-              : <Text style={styles.viewOnly}>View only</Text>
+            {isDriverMode
+              ? <Text style={styles.viewOnly}>View only</Text>
+              : <View style={{ width: 50 }} />
             }
           </View>
 
-          {/* Scrollable form */}
+          {/* ── Scrollable form fields ── */}
           <ScrollView
             contentContainerStyle={styles.body}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
           >
             <View style={[styles.colorBar, { backgroundColor: roleColor }]} />
 
-            {/* Driver banner */}
             {isDriverMode && (
               <View style={styles.driverBanner}>
                 <Text style={styles.driverBannerText}>
@@ -206,7 +187,6 @@ const EventFormModal = ({
                 />
               </View>
             </View>
-
             {activePicker === 'start' && (
               <View style={styles.calendarPicker}>
                 <Calendar
@@ -243,7 +223,6 @@ const EventFormModal = ({
                 />
               </View>
             </View>
-
             {activePicker === 'end' && (
               <View style={styles.calendarPicker}>
                 <Calendar
@@ -257,7 +236,7 @@ const EventFormModal = ({
               </View>
             )}
 
-            {/* Duration summary */}
+            {/* Duration */}
             {startDate && endDate && (
               <View style={[styles.durationBadge, { backgroundColor: roleColor + '18', borderColor: roleColor + '40' }]}>
                 <Text style={[styles.durationText, { color: roleColor }]}>
@@ -313,19 +292,6 @@ const EventFormModal = ({
               </View>
             )}
 
-            {/* Primary save button at bottom of form */}
-            {!isDriverMode && (
-              <TouchableOpacity
-                style={[styles.savePrimaryBtn, { backgroundColor: roleColor }]}
-                onPress={handleSave}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.savePrimaryText}>
-                  {isEditing ? 'Update Shift' : 'Save Shift'}
-                </Text>
-              </TouchableOpacity>
-            )}
-
             {/* Delete */}
             {isEditing && !isDriverMode && !initialEvent?.acceptedByDriver && (
               <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
@@ -333,13 +299,28 @@ const EventFormModal = ({
               </TouchableOpacity>
             )}
 
-            {/* Locked */}
             {isEditing && !isDriverMode && initialEvent?.acceptedByDriver && (
               <View style={styles.lockedBanner}>
-                <Text style={styles.lockedText}>🔒 This shift has been accepted by a driver and cannot be deleted.</Text>
+                <Text style={styles.lockedText}>🔒 Accepted by a driver — cannot be deleted.</Text>
               </View>
             )}
           </ScrollView>
+
+          {/* ── Fixed footer Save button — outside ScrollView, always tappable ── */}
+          {!isDriverMode && (
+            <View style={styles.footer}>
+              <TouchableOpacity
+                style={[styles.saveBtn, { backgroundColor: roleColor }]}
+                onPress={handleSave}
+                activeOpacity={0.75}
+              >
+                <Text style={styles.saveBtnText}>
+                  {isEditing ? 'Update Shift' : 'Save Shift'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
         </View>
       </View>
     </Modal>
@@ -378,16 +359,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#2E2E42',
   },
   headerTitle: { color: '#FFF', fontSize: 16, fontWeight: '600' },
-  cancel: { color: '#777', fontSize: 15 },
-  headerSave: { fontSize: 15, fontWeight: '700' },
-  viewOnly: { color: '#555', fontSize: 13, fontStyle: 'italic' },
+  cancel: { color: '#777', fontSize: 15, minWidth: 50 },
+  viewOnly: { color: '#555', fontSize: 13, fontStyle: 'italic', minWidth: 50, textAlign: 'right' },
 
-  body: { padding: 18, paddingBottom: 50 },
+  body: { padding: 18, paddingBottom: 8 },
   colorBar: { height: 4, borderRadius: 2, marginBottom: 18 },
 
   driverBanner: {
@@ -440,11 +421,6 @@ const styles = StyleSheet.create({
   colorDot: { width: 30, height: 30, borderRadius: 15 },
   colorSelected: { borderWidth: 3, borderColor: '#FFF', transform: [{ scale: 1.15 }] },
 
-  savePrimaryBtn: {
-    borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 8, marginBottom: 4,
-  },
-  savePrimaryText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
-
   deleteBtn: {
     marginTop: 8, backgroundColor: '#3D1A1A',
     borderRadius: 10, padding: 14, alignItems: 'center',
@@ -456,6 +432,19 @@ const styles = StyleSheet.create({
     padding: 12, borderLeftWidth: 3, borderLeftColor: '#555',
   },
   lockedText: { color: '#666', fontSize: 12, lineHeight: 18 },
+
+  footer: {
+    padding: 16,
+    paddingBottom: 24,
+    borderTopWidth: 1,
+    borderTopColor: '#2E2E42',
+  },
+  saveBtn: {
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  saveBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
 });
 
 export default EventFormModal;
