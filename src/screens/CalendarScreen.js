@@ -10,6 +10,7 @@ import { getShiftDisplayColor, getShiftStatus } from '../utils/shiftHelpers';
 import RoleTabBar from '../components/RoleTabBar';
 import EventCard from '../components/EventCard';
 import EventFormModal from '../components/EventFormModal';
+import TimelineView from '../components/TimelineView';
 
 const today = new Date().toISOString().split('T')[0];
 
@@ -18,6 +19,7 @@ const CalendarScreen = () => {
   const [activeRole, setActiveRole] = useState('manager');
   const [selectedDate, setSelectedDate] = useState(today);
   const [modalVisible, setModalVisible] = useState(false);
+  const [viewMode, setViewMode] = useState('calendar'); // 'calendar' | 'timeline'
   const [editingShift, setEditingShift] = useState(null);
   // Tick every 60s so status/color recalculates in real-time
   const [tick, setTick] = useState(0);
@@ -183,9 +185,30 @@ const CalendarScreen = () => {
           <Text style={styles.appTitle}>Shift Calendar</Text>
           <Text style={styles.subtitle}>{totalShifts} total shifts</Text>
         </View>
-        <View style={[styles.roleIndicator, { backgroundColor: role.color + '22', borderColor: role.color }]}>
-          <Text style={styles.roleEmoji}>{role.emoji}</Text>
-          <Text style={[styles.roleLabel, { color: role.color }]}>{role.label}</Text>
+        <View style={styles.headerRight}>
+          {/* View mode toggle */}
+          <View style={styles.viewToggle}>
+            <TouchableOpacity
+              style={[styles.toggleBtn, viewMode === 'calendar' && { backgroundColor: role.color }]}
+              onPress={() => setViewMode('calendar')}
+            >
+              <Text style={[styles.toggleTxt, viewMode === 'calendar' && styles.toggleTxtActive]}>
+                Cal
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toggleBtn, viewMode === 'timeline' && { backgroundColor: role.color }]}
+              onPress={() => setViewMode('timeline')}
+            >
+              <Text style={[styles.toggleTxt, viewMode === 'timeline' && styles.toggleTxtActive]}>
+                Timeline
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <View style={[styles.roleIndicator, { backgroundColor: role.color + '22', borderColor: role.color }]}>
+            <Text style={styles.roleEmoji}>{role.emoji}</Text>
+            <Text style={[styles.roleLabel, { color: role.color }]}>{role.label}</Text>
+          </View>
         </View>
       </View>
 
@@ -202,69 +225,80 @@ const CalendarScreen = () => {
         </Text>
       </View>
 
-      {/* Calendar */}
-      <Calendar
-        style={styles.calendar}
-        theme={{
-          backgroundColor: 'transparent',
-          calendarBackground: '#1E1E2E',
-          textSectionTitleColor: '#666',
-          selectedDayBackgroundColor: role.color,
-          selectedDayTextColor: '#fff',
-          todayTextColor: role.color,
-          dayTextColor: '#DDD',
-          textDisabledColor: '#3a3a4a',
-          arrowColor: role.color,
-          monthTextColor: '#FFF',
-          textDayFontWeight: '400',
-          textMonthFontWeight: '700',
-          textDayHeaderFontWeight: '600',
-          textDayFontSize: 14,
-          textMonthFontSize: 16,
-          textDayHeaderFontSize: 11,
-        }}
-        current={selectedDate}
-        onDayPress={(day) => setSelectedDate(day.dateString)}
-        markedDates={markedDates}
-        markingType="multi-dot"
-        enableSwipeMonths
-      />
+      {viewMode === 'calendar' ? (
+        <>
+          {/* Calendar */}
+          <Calendar
+            style={styles.calendar}
+            theme={{
+              backgroundColor: 'transparent',
+              calendarBackground: '#1E1E2E',
+              textSectionTitleColor: '#666',
+              selectedDayBackgroundColor: role.color,
+              selectedDayTextColor: '#fff',
+              todayTextColor: role.color,
+              dayTextColor: '#DDD',
+              textDisabledColor: '#3a3a4a',
+              arrowColor: role.color,
+              monthTextColor: '#FFF',
+              textDayFontWeight: '400',
+              textMonthFontWeight: '700',
+              textDayHeaderFontWeight: '600',
+              textDayFontSize: 14,
+              textMonthFontSize: 16,
+              textDayHeaderFontSize: 11,
+            }}
+            current={selectedDate}
+            onDayPress={(day) => setSelectedDate(day.dateString)}
+            markedDates={markedDates}
+            markingType="multi-dot"
+            enableSwipeMonths
+          />
 
-      {/* Shifts for selected day */}
-      <View style={styles.eventsSection}>
-        <View style={styles.dateLine}>
-          <Text style={styles.dateLabel}>{formatDate(selectedDate)}</Text>
-          <View style={[styles.countBadge, { backgroundColor: role.color + '22' }]}>
-            <Text style={[styles.countText, { color: role.color }]}>
-              {dayShifts.length} {dayShifts.length === 1 ? 'shift' : 'shifts'}
-            </Text>
-          </View>
-        </View>
-
-        <FlatList
-          data={dayShifts}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <EventCard
-              event={item}
-              isDriverMode={isDriver}
-              onPress={() => openEditModal(item)}
-              onAccept={() => handleAccept(item)}
-            />
-          )}
-          ListEmptyComponent={
-            <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>{role.emoji}</Text>
-              <Text style={styles.emptyText}>No {role.label} shifts on this day</Text>
-              <Text style={styles.emptyHint}>
-                {isDriver ? 'No shifts available to accept' : 'Tap + to add a shift'}
-              </Text>
+          {/* Shifts for selected day */}
+          <View style={styles.eventsSection}>
+            <View style={styles.dateLine}>
+              <Text style={styles.dateLabel}>{formatDate(selectedDate)}</Text>
+              <View style={[styles.countBadge, { backgroundColor: role.color + '22' }]}>
+                <Text style={[styles.countText, { color: role.color }]}>
+                  {dayShifts.length} {dayShifts.length === 1 ? 'shift' : 'shifts'}
+                </Text>
+              </View>
             </View>
-          }
-          contentContainerStyle={[styles.list, dayShifts.length === 0 && styles.emptyList]}
-          showsVerticalScrollIndicator={false}
+
+            <FlatList
+              data={dayShifts}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <EventCard
+                  event={item}
+                  isDriverMode={isDriver}
+                  onPress={() => openEditModal(item)}
+                  onAccept={() => handleAccept(item)}
+                />
+              )}
+              ListEmptyComponent={
+                <View style={styles.empty}>
+                  <Text style={styles.emptyEmoji}>{role.emoji}</Text>
+                  <Text style={styles.emptyText}>No {role.label} shifts on this day</Text>
+                  <Text style={styles.emptyHint}>
+                    {isDriver ? 'No shifts available to accept' : 'Tap + to add a shift'}
+                  </Text>
+                </View>
+              }
+              contentContainerStyle={[styles.list, dayShifts.length === 0 && styles.emptyList]}
+              showsVerticalScrollIndicator={false}
+            />
+          </View>
+        </>
+      ) : (
+        /* Timeline / Gantt view */
+        <TimelineView
+          events={roleEvents}
+          roleColor={role.color}
+          onShiftPress={openEditModal}
         />
-      </View>
+      )}
 
       {/* FAB — hidden for driver (Rule 1) */}
       {!isDriver && (
@@ -300,6 +334,20 @@ const styles = StyleSheet.create({
   },
   appTitle: { color: '#FFF', fontSize: 22, fontWeight: '700' },
   subtitle: { color: '#555', fontSize: 11, marginTop: 2 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  viewToggle: {
+    flexDirection: 'row',
+    backgroundColor: '#252535',
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  toggleBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  toggleTxt: { color: '#666', fontSize: 11, fontWeight: '700' },
+  toggleTxtActive: { color: '#FFF' },
   roleIndicator: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 12, paddingVertical: 6,
