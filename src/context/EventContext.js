@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { Alert } from 'react-native';
-import { loadRoleEvents, saveRoleEvents } from '../utils/storage';
+import { getShifts, createShift, updateShift, deleteShift, acceptShiftApi } from '../utils/api';
 
 const EventContext = createContext(null);
 
@@ -16,41 +16,43 @@ export const EventProvider = ({ children }) => {
     allEventsRef.current = allEvents;
   }, [allEvents]);
 
+  // Load shifts from the database on mount
   useEffect(() => {
     if (loadedRef.current) return;
     loadedRef.current = true;
-    Promise.all(STORAGE_ROLES.map((r) => loadRoleEvents(r).then((e) => [r, e]))).then((results) => {
-      const combined = {};
-      results.forEach(([role, events]) => { combined[role] = events; });
-      setAllEvents(combined);
-      setLoading(false);
-    });
+    Promise.all(STORAGE_ROLES.map((r) => getShifts(r).then((e) => [r, e])))
+      .then((results) => {
+        const combined = {};
+        results.forEach(([role, events]) => { combined[role] = events; });
+        setAllEvents(combined);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error('Failed to load shifts from database:', err.message);
+        setLoading(false);
+      });
   }, []);
-
-  // Persist to AsyncStorage after every committed state change (not during initial load)
-  useEffect(() => {
-    if (loading) return;
-    STORAGE_ROLES.forEach((role) => {
-      saveRoleEvents(role, allEvents[role] || {});
-    });
-  }, [allEvents, loading]);
 
   const addEvent = useCallback((role, date, event) => {
     if (role === 'driver') return;
+    // Optimistic local update
     setAllEvents((prev) => {
       const roleEvents = prev[role] || {};
       const dayEvents = roleEvents[date] ? [...roleEvents[date], event] : [event];
       return { ...prev, [role]: { ...roleEvents, [date]: dayEvents } };
     });
+    // Persist to database in the background
+    createShift(role, date, event).catch((e) =>
+      console.error('DB sync error (add):', e.message),
+    );
   }, []);
 
   const updateEvent = useCallback((role, date, updatedEvent) => {
     if (role === 'driver') return;
+    const newDate = updatedEvent.startDate || date;
     setAllEvents((prev) => {
       const roleEvents = prev[role] || {};
-      const newDate = updatedEvent.startDate || date;
       if (newDate !== date) {
-        // Move event to the new date bucket
         const re = { ...roleEvents };
         const oldDay = (re[date] || []).filter((e) => e.id !== updatedEvent.id);
         if (oldDay.length === 0) delete re[date];
@@ -59,10 +61,13 @@ export const EventProvider = ({ children }) => {
         return { ...prev, [role]: re };
       }
       const dayEvents = (roleEvents[date] || []).map((e) =>
-        e.id === updatedEvent.id ? updatedEvent : e
+        e.id === updatedEvent.id ? updatedEvent : e,
       );
       return { ...prev, [role]: { ...roleEvents, [date]: dayEvents } };
     });
+    updateShift(role, newDate, updatedEvent).catch((e) =>
+      console.error('DB sync error (update):', e.message),
+    );
   }, []);
 
   const deleteEvent = useCallback((role, date, eventId) => {
@@ -80,16 +85,22 @@ export const EventProvider = ({ children }) => {
       else re[date] = dayEvents;
       return { ...prev, [role]: re };
     });
+    deleteShift(eventId).catch((e) =>
+      console.error('DB sync error (delete):', e.message),
+    );
   }, []);
 
   const acceptShift = useCallback((createdByRole, date, shiftId) => {
     setAllEvents((prev) => {
       const roleEvents = prev[createdByRole] || {};
       const dayEvents = (roleEvents[date] || []).map((e) =>
-        e.id === shiftId ? { ...e, acceptedByDriver: true, acceptedAt: Date.now() } : e
+        e.id === shiftId ? { ...e, acceptedByDriver: true, acceptedAt: Date.now() } : e,
       );
       return { ...prev, [createdByRole]: { ...roleEvents, [date]: dayEvents } };
     });
+    acceptShiftApi(shiftId).catch((e) =>
+      console.error('DB sync error (accept):', e.message),
+    );
   }, []);
 
   return (
