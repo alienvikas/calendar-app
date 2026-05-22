@@ -4,12 +4,17 @@ import { loadRoleEvents, saveRoleEvents } from '../utils/storage';
 
 const EventContext = createContext(null);
 
-const STORAGE_ROLES = ['manager', 'retailer']; // driver has no own storage
+const STORAGE_ROLES = ['manager', 'retailer'];
 
 export const EventProvider = ({ children }) => {
   const [allEvents, setAllEvents] = useState({ manager: {}, retailer: {} });
   const [loading, setLoading] = useState(true);
   const loadedRef = useRef(false);
+  const allEventsRef = useRef(allEvents);
+
+  useEffect(() => {
+    allEventsRef.current = allEvents;
+  }, [allEvents]);
 
   useEffect(() => {
     if (loadedRef.current) return;
@@ -22,70 +27,68 @@ export const EventProvider = ({ children }) => {
     });
   }, []);
 
-  /** Add a shift. Only manager/retailer allowed. */
-  const addEvent = useCallback(async (role, date, event) => {
+  // Persist to AsyncStorage after every committed state change (not during initial load)
+  useEffect(() => {
+    if (loading) return;
+    STORAGE_ROLES.forEach((role) => {
+      saveRoleEvents(role, allEvents[role] || {});
+    });
+  }, [allEvents, loading]);
+
+  const addEvent = useCallback((role, date, event) => {
     if (role === 'driver') return;
     setAllEvents((prev) => {
       const roleEvents = prev[role] || {};
       const dayEvents = roleEvents[date] ? [...roleEvents[date], event] : [event];
-      const updated = { ...prev, [role]: { ...roleEvents, [date]: dayEvents } };
-      saveRoleEvents(role, updated[role]);
-      return updated;
+      return { ...prev, [role]: { ...roleEvents, [date]: dayEvents } };
     });
   }, []);
 
-  /** Update a shift. Only manager/retailer allowed. */
-  const updateEvent = useCallback(async (role, date, updatedEvent) => {
+  const updateEvent = useCallback((role, date, updatedEvent) => {
     if (role === 'driver') return;
     setAllEvents((prev) => {
       const roleEvents = prev[role] || {};
+      const newDate = updatedEvent.startDate || date;
+      if (newDate !== date) {
+        // Move event to the new date bucket
+        const re = { ...roleEvents };
+        const oldDay = (re[date] || []).filter((e) => e.id !== updatedEvent.id);
+        if (oldDay.length === 0) delete re[date];
+        else re[date] = oldDay;
+        re[newDate] = [...(re[newDate] || []), updatedEvent];
+        return { ...prev, [role]: re };
+      }
       const dayEvents = (roleEvents[date] || []).map((e) =>
         e.id === updatedEvent.id ? updatedEvent : e
       );
-      const updated = { ...prev, [role]: { ...roleEvents, [date]: dayEvents } };
-      saveRoleEvents(role, updated[role]);
-      return updated;
+      return { ...prev, [role]: { ...roleEvents, [date]: dayEvents } };
     });
   }, []);
 
-  /**
-   * Delete a shift. Only manager/retailer allowed.
-   * Rule 4: Cannot delete if acceptedByDriver.
-   */
-  const deleteEvent = useCallback(async (role, date, eventId) => {
+  const deleteEvent = useCallback((role, date, eventId) => {
     if (role === 'driver') return;
+    // Check acceptedByDriver before touching state (Alert must not be called inside an updater)
+    const existing = ((allEventsRef.current[role] || {})[date] || []).find((e) => e.id === eventId);
+    if (existing?.acceptedByDriver) {
+      Alert.alert('Cannot Delete', 'This shift has been accepted by a driver and cannot be deleted.');
+      return;
+    }
     setAllEvents((prev) => {
-      const roleEvents = { ...(prev[role] || {}) };
-      const existing = (roleEvents[date] || []).find((e) => e.id === eventId);
-      if (existing?.acceptedByDriver) {
-        Alert.alert(
-          'Cannot Delete',
-          'This shift has been accepted by a driver and cannot be deleted.'
-        );
-        return prev; // no change
-      }
-      const dayEvents = (roleEvents[date] || []).filter((e) => e.id !== eventId);
-      if (dayEvents.length === 0) delete roleEvents[date];
-      else roleEvents[date] = dayEvents;
-      const updated = { ...prev, [role]: roleEvents };
-      saveRoleEvents(role, updated[role]);
-      return updated;
+      const re = { ...(prev[role] || {}) };
+      const dayEvents = (re[date] || []).filter((e) => e.id !== eventId);
+      if (dayEvents.length === 0) delete re[date];
+      else re[date] = dayEvents;
+      return { ...prev, [role]: re };
     });
   }, []);
 
-  /**
-   * Driver accepts a shift.
-   * createdByRole is 'manager' or 'retailer' — where the shift actually lives.
-   */
-  const acceptShift = useCallback(async (createdByRole, date, shiftId) => {
+  const acceptShift = useCallback((createdByRole, date, shiftId) => {
     setAllEvents((prev) => {
       const roleEvents = prev[createdByRole] || {};
       const dayEvents = (roleEvents[date] || []).map((e) =>
         e.id === shiftId ? { ...e, acceptedByDriver: true, acceptedAt: Date.now() } : e
       );
-      const updated = { ...prev, [createdByRole]: { ...roleEvents, [date]: dayEvents } };
-      saveRoleEvents(createdByRole, updated[createdByRole]);
-      return updated;
+      return { ...prev, [createdByRole]: { ...roleEvents, [date]: dayEvents } };
     });
   }, []);
 
