@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, startTransition } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, FlatList, StatusBar, Alert,
 } from 'react-native';
@@ -57,13 +57,16 @@ const CalendarScreen = () => {
     allRoleEvents.forEach((shift) => {
       const start = shift.startDate || shift.date;
       const end = shift.endDate || start;
-      const color = getShiftDisplayColor(shift); // red if urgent, grey if pending
+      if (!start) return;
+      const color = getShiftDisplayColor(shift);
       let cur = start;
-      while (cur <= end) {
+      let days = 0;
+      while (cur <= end && days < 366) {
         addPeriod(cur, { startingDay: cur === start, endingDay: cur === end, color });
         const d = new Date(cur + 'T00:00:00');
         d.setDate(d.getDate() + 1);
         cur = d.toISOString().split('T')[0];
+        days++;
       }
     });
     marks[selectedDate] = {
@@ -96,15 +99,21 @@ const CalendarScreen = () => {
     setModalVisible(true);
   }, []);
 
-  const handleSave = useCallback(async (formData) => {
-    try {
-      const storageDate = formData.startDate || selectedDate;
+  const handleSave = useCallback((formData) => {
+    // Close modal immediately so the slide-out animation isn't blocked by the
+    // heavy markedDates recomputation that follows.
+    setModalVisible(false);
+    setEditingShift(null);
+
+    const storageDate = formData.startDate || selectedDate;
+    // Defer the state write so React handles the urgent modal-close render first.
+    startTransition(() => {
       if (editingShift) {
         const oldDate = editingShift.startDate || selectedDate;
         const targetRole = editingShift.createdBy || activeRole;
-        await updateEvent(targetRole, oldDate, { ...editingShift, ...formData });
+        updateEvent(targetRole, oldDate, { ...editingShift, ...formData });
       } else {
-        await addEvent(activeRole, storageDate, {
+        addEvent(activeRole, storageDate, {
           id: Date.now().toString(),
           createdAt: Date.now(),
           createdBy: activeRole,
@@ -112,20 +121,18 @@ const CalendarScreen = () => {
           ...formData,
         });
       }
-      setModalVisible(false);
-      setEditingShift(null);
-    } catch (err) {
-      Alert.alert('Save Failed', err?.message || 'Something went wrong. Please try again.');
-    }
+    });
   }, [editingShift, activeRole, selectedDate, addEvent, updateEvent, role.color]);
 
-  const handleDelete = useCallback(async () => {
+  const handleDelete = useCallback(() => {
     if (!editingShift) return;
     const targetRole = editingShift.createdBy || activeRole;
     const storageDate = editingShift.startDate || selectedDate;
-    await deleteEvent(targetRole, storageDate, editingShift.id);
     setModalVisible(false);
     setEditingShift(null);
+    startTransition(() => {
+      deleteEvent(targetRole, storageDate, editingShift.id);
+    });
   }, [editingShift, activeRole, selectedDate, deleteEvent]);
 
   const handleAccept = useCallback((shift) => {
