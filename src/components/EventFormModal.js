@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -106,8 +106,27 @@ const EventFormModal = ({
     setActivePicker(null);
   };
 
-  const markedStart = startDate ? { [startDate]: { selected: true, selectedColor: roleColor } } : {};
-  const markedEnd   = endDate   ? { [endDate]:   { selected: true, selectedColor: roleColor } } : {};
+  // Build period marks from startDate to endDate for the inline pickers
+  const rangeMarks = useMemo(() => {
+    if (!startDate) return {};
+    const marks = {};
+    const end = endDate || startDate;
+    let cur = startDate;
+    let days = 0;
+    while (cur <= end && days < 366) {
+      marks[cur] = {
+        color: roleColor,
+        startingDay: cur === startDate,
+        endingDay: cur === end,
+        textColor: '#fff',
+      };
+      const d = new Date(cur + 'T00:00:00');
+      d.setDate(d.getDate() + 1);
+      cur = d.toISOString().split('T')[0];
+      days++;
+    }
+    return marks;
+  }, [startDate, endDate, roleColor]);
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -192,7 +211,8 @@ const EventFormModal = ({
                 <Calendar
                   current={startDate}
                   onDayPress={handleStartDateSelect}
-                  markedDates={markedStart}
+                  markedDates={rangeMarks}
+                  markingType="period"
                   theme={calTheme(roleColor)}
                   style={styles.inlineCalendar}
                 />
@@ -228,7 +248,8 @@ const EventFormModal = ({
                 <Calendar
                   current={endDate}
                   onDayPress={handleEndDateSelect}
-                  markedDates={markedEnd}
+                  markedDates={rangeMarks}
+                  markingType="period"
                   minDate={startDate}
                   theme={calTheme(roleColor)}
                   style={styles.inlineCalendar}

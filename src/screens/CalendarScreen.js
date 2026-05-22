@@ -50,10 +50,6 @@ const CalendarScreen = () => {
   // multi-period marks with dynamic color per shift
   const markedDates = useMemo(() => {
     const marks = {};
-    const addPeriod = (dateStr, period) => {
-      if (!marks[dateStr]) marks[dateStr] = { periods: [] };
-      marks[dateStr].periods.push(period);
-    };
     allRoleEvents.forEach((shift) => {
       const start = shift.startDate || shift.date;
       const end = shift.endDate || start;
@@ -62,7 +58,12 @@ const CalendarScreen = () => {
       let cur = start;
       let days = 0;
       while (cur <= end && days < 366) {
-        addPeriod(cur, { startingDay: cur === start, endingDay: cur === end, color });
+        if (!marks[cur]) marks[cur] = { dots: [] };
+        else if (!marks[cur].dots) marks[cur].dots = [];
+        // Cap at 3 dots per day to avoid visual clutter
+        if (marks[cur].dots.length < 3) {
+          marks[cur].dots.push({ key: shift.id + cur, color });
+        }
         const d = new Date(cur + 'T00:00:00');
         d.setDate(d.getDate() + 1);
         cur = d.toISOString().split('T')[0];
@@ -225,7 +226,7 @@ const CalendarScreen = () => {
         current={selectedDate}
         onDayPress={(day) => setSelectedDate(day.dateString)}
         markedDates={markedDates}
-        markingType="multi-period"
+        markingType="multi-dot"
         enableSwipeMonths
       />
 
